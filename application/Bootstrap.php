@@ -2,35 +2,84 @@
 
 class Bootstrap extends Zend_Application_Bootstrap_Bootstrap
 {
+    /**
+     * @var const 設定目前系統使用的角色/身分資料表
+     */
+    const NOW_ROLE_TABLE = 'sys_role';
+    /**
+     * @var const 設定目前系統使用的資源/選單資料表
+     */
+    const NOW_RESOURCE_TABLE = 'sys_resource';
+
 	private $_session;	//session
+	
 	private $_config;	//資料表
+
 	private $_db;		//Zend_Db from Application_Model_Configure
 
 	public function _initConstruct()
 	{
 		//直接確認啟動db部份！
-		//本專案不使用mail->bootstrap('mail');
+		//本專案不使用mail ->bootstrap('mail');
 		$this->bootstrap('db')->bootstrap('session');
 
 		$this->_session = new Zend_Session_Namespace( APPLICATION_SESSION );
 		$this->_config = new Application_Model_Configure();
 		$this->_db = $this->getPluginResource('db')->getDbAdapter();
 	}
+    
+    
+    /**
+     * 2012-03-26
+     * @Author San
+     * 
+     * feature::初始化系統角色功能
+     * 1. 檢查資料庫是否存在身分資料表(此處程式只需檢查資料庫，由別的地方處理當系統身分需要做更新時的邏輯)
+     * 2. 若是則掠過，否則建立系統身分資料表
+     */
+    protected function _initRole()
+    {
+        $select = $this->_db->select();
+        $select->from(self::NOW_ROLE_TABLE);
+        $result = $this->_db->fetchRow($select);
+        
+        if( !$result ){
+            $acl = new Zend_Config_Xml( realpath(dirname(__FILE__)).'/configs/acl.xml', 'default' );
+            // $acl->locate [多語系使用:zh_TW]
+            
+            $data = $acl->role->toArray();
+            foreach( $data as $k => $v){
+                $data = array(
+                                "roleName"=>$v['roleName'],
+                                "roleKey"=>$v['roleKey'],
+                                "description"=>$v['description'],
+                                "disable"=>$v['disable']
+                             );
+                            
+                if( !empty($v['parent']) ){
+                    
+                    //利用reset()來清除原本設定的where條件式
+                    $select->reset(Zend_Db_Select::WHERE)
+                           ->where("roleName = ?", $v['parent']);
+                    // echo $select->__toString();
+                    $pResult = $this->_db->fetchRow($select);
+                    $data['roleParentId'] = $pResult['roleId'];
+                }
+                
+                if( !($roleId = $this->_db->insert(self::NOW_ROLE_TABLE, $data)) ){
+                    throw new Zend_Db_Exception(__FILE__.' '.__LINE__."行 資料寫入錯誤！");    
+                }
+            }
+        
+        }elseif( is_array($result) ){
+            return true;
+        }else{
+            throw new Zend_Application_Bootstrap_Exception("初始化系統角色發生問題，變數回傳型態不為空或陣列。");
+            Zend_Debug::dump($result);
+            die();
+        }
+    }   
 	
-	protected function _initBaseUrl()
-	{
-		$this->bootstrap('frontController');
-        $front = $this->getResource('frontController');
-
-		$this->_burl = Zend_Controller_Front::getInstance()->getBaseUrl();
-	    if (!$this->_burl) {
-	      $this->_burl = rtrim(preg_replace( '/([^\/]*)$/', '', $_SERVER['PHP_SELF'] ), '/\\');
-	      $front->setBaseUrl($this->_burl);
-	    }
-		
-		$request=new Zend_Controller_Request_Http();
-        $front->setRequest($request);  
-	}
 
 	/**
 	 * feature::處理系統設定[SESSION]常數
@@ -121,139 +170,91 @@ class Bootstrap extends Zend_Application_Bootstrap_Bootstrap
 		}
     }	
 	
-	protected function _initRole()
-	{
-		
-		if( file_exists(realpath(dirname(__FILE__)).'/configs/application.xml')){
-			//step1. 確認DB內無資料！
-			$role = $this->_db->fetchAll("SELECT * FROM sys_role WHERE roleType = 'APPLICATION'");
-			if( count($role) > 0 ){
-				return false;
-			}
-			
-			//step2. 讀取設定檔內role區段資料
-			$xml = new Zend_Config_Xml( realpath(dirname(__FILE__)).'/configs/application.xml', 'role' );
-			$data  =$xml->toArray();
-			
-			if( is_array($data['actor']) && count($data['actor']) > 0){
-				foreach( $data['actor'] as $k => $v){
-					if( $v['parentName']!="" ){
-						$parent = $this->_db->fetchRow("SELECT roleId FROM sys_role WHERE roleName = '{$v['parentName']}'");
-						if( $parent ){
-							$v['roleParentId'] = $parent['roleId'];
-						}else{
-							$v['roleParentId'] = 0;
-						}
-					}
-					
-					if( $v['name']!="" ){
-						$row = $this->_db->fetchRow("SELECT roleId FROM sys_role WHERE roleName = '{$v['name']}'");
-						if( !$row ){
-						$this->_db->insert('sys_role', array(
-							'roleParentId'		=> $v['roleParentId'],
-							'roleType'			=> 'APPLICATION',
-							'roleName'			=> $v['name'],
-							'description'		=> $v['description'],
-							'delete'			=> 0
-						));
-						}else{
-						$this->_db->update('sys_role', array(
-							'roleParentId'		=> $v['roleParentId'],
-							'roleType'			=> 'APPLICATION',
-							'roleName'			=> $v['name'],
-							'description'		=> $v['description'],
-							'delete'			=> 0
-						), "roleId = {$row['roleId']}");	
-						}
-					}
-				}
-			}
-			
-		//若檔案不存在，則不再處理此區塊！
-		}else{
-			return false;
-		}
-	}	
 
-
-	//設定由預設的例外錯誤處理controller接受整個系統發生的例外事件！
-	protected function _initErrorHandler()
-	{
-		$this->bootstrap('frontController');
-        $front = $this->getResource('frontController');
-        $front->registerPlugin( new Zend_Controller_Plugin_ErrorHandler(array(
-																		    'module'     => 'default',
-																		    'controller' => 'error',
-																		    'action'     => 'default'
-																	    )
-							  										   ) 
-							  );
-	}
-	
-	protected function _initLogger()
-	{
+    protected function _initLogger()
+    {
         // Create the Zend_Log object
         $logger = new Zend_Log();
 
-		//設定log紀錄資料表的[logtype]欄位值
-		$DBwriter = new Zend_Log_Writer_Db( $this->_db, 'apps_logger', 
-											array(
-												'loggerType'	=>	'defineType',
-												'event'			=>	'priorityName',
-												'refer'			=>	'refer',
-												'href'			=>	'href',
-												'input'			=>	'params',
-												'output'		=>	'return',
-												'messages'		=>	'message',
-												'initTime'		=>	'timestamp'
-											) );
-		
-		$logger->setEventItem('defineType', 'AUTH'); //自訂事件類型寫入資料庫欄位logType ( AUTH/MANAGE/OPERATOR/IO/CONFIG )
-		
-		$logger->setEventItem('refer', $_SERVER['HTTP_REFERER']);
-		$logger->setEventItem('href', "http://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}");
-		
-		$logger->addWriter($DBwriter);
-		
+        //設定log紀錄資料表的[logtype]欄位值
+        $DBwriter = new Zend_Log_Writer_Db( $this->_db, 'apps_logger', 
+                                            array(
+                                                'loggerType'    =>  'defineType',
+                                                'event'         =>  'priorityName',
+                                                'refer'         =>  'refer',
+                                                'href'          =>  'href',
+                                                'input'         =>  'params',
+                                                'output'        =>  'return',
+                                                'messages'      =>  'message',
+                                                'initTime'      =>  'timestamp'
+                                            ) );
+        
+        $logger->setEventItem('defineType', 'AUTH'); //自訂事件類型寫入資料庫欄位logType ( AUTH/MANAGE/OPERATOR/IO/CONFIG )
+        if( isset($_SERVER['HTTP_REFERER']))
+        $logger->setEventItem('refer', $_SERVER['HTTP_REFERER']);
+        $logger->setEventItem('href', "http://{$_SERVER['HTTP_HOST']}{$_SERVER['REQUEST_URI']}");
+        
+        $logger->addWriter($DBwriter);
+        
         // 處理顯示Firebug Logger - Development only
         if ($this->_application->getEnvironment() != 'online') {
             // Init firebug logging
             $fbWriter = new Zend_Log_Writer_Firebug();
             $logger->addWriter($fbWriter);
 
-	        // Create the resource for the error log file
-	        // if you dont want to use the error suppressor "@"
-	        // you can always use: is_writable
-	        // http://php.net/manual/function.is-writable.php
-	        $stream = @fopen(ini_get(APPLICATION_PATH.'/error.log'), 'a');
-	        if ($stream) {
-	            $stdWritter = new Zend_Log_Writer_Stream($stream);
-	            $stdWritter->addFilter(Zend_Log::DEBUG);
-	            $stdWritter->addFilter(Zend_Log::INFO);
-	            $logger->addWriter($stdWritter);
-	        }
+            // Create the resource for the error log file
+            // if you dont want to use the error suppressor "@"
+            // you can always use: is_writable
+            // http://php.net/manual/function.is-writable.php
+            $stream = @fopen(ini_get(APPLICATION_PATH.'/error.log'), 'a');
+            if ($stream) {
+                $stdWritter = new Zend_Log_Writer_Stream($stream);
+                $stdWritter->addFilter(Zend_Log::DEBUG);
+                $stdWritter->addFilter(Zend_Log::INFO);
+                $logger->addWriter($stdWritter);
+            }
         }
-		
-		$this->bootstrap('frontController');
+        
+        $this->bootstrap('frontController');
         $front = $this->getResource('frontController');
         $front->registerPlugin( new OAS_Plugin_Logger( $logger ) );
 
         return $logger;
-	}
+    }
 
+
+	/**
+     * feature::初始化系統內Action_Plugin
+     */
+    protected function _initActionPlugins()
+    {
+        $this->bootstrap('frontController');
+        
+        $this->getResource('frontController')
+             
+             //於Zend_Controller_Plugin_ErrorHandler內已經自動判斷從$response抓取出若有Exception則啟動。
+             ->throwExceptions(true)
+             ->registerPlugin( new Zend_Controller_Plugin_ErrorHandler(array(
+                                                                            'module'     => 'default',
+                                                                            'controller' => 'error',
+                                                                            'action'     => 'index'
+                                                                      )) 
+                              );
+    }
+    
+    
 	/**
 	 * 2011-06-10
 	 * San
 	 * 加入處理設定所有Action設定Helper library!
 	 */
-	protected function _initHelper()
+	protected function _initActionHelper()
 	{
 		//存取MVC架構所有Action()清單功能
 		Zend_Controller_Action_HelperBroker::addHelper(new OAS_Helper_ResourceList() );
 		//引入集合匯入jQuery套件功能
 		Zend_Controller_Action_HelperBroker::addHelper(new OAS_Helper_ImportJavascripts() );
 		
-		$asset = new OAS_Helper_ResourceList();
-		Zend_Debug::dump($asset->getLists());
+		// $asset = new OAS_Helper_ResourceList();
     }	
 }

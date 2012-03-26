@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configdata>
+<default locate="zh_TW">
+	<role roleKey="admin">
+		<roleName>系統管理者</roleName>
+		<description>整個系統預設後台身分，此身分預設可以瀏覽後台頁面功能。</description>
+		<disable>0</disable>
+	</role>
+	<role roleKey="user">
+		<roleName>系統使用者</roleName>
+		<description>整個系統預設前台身分，所有線上瀏覽者預設屬於此身分。</description>
+		<disable>0</disable>
+	</role>
+	
+	<role roleKey="root">
+		<roleName>超級管理者</roleName>
+		<description>整個系統最高權限管理者，至少必須有一個帳號設定為此身分。</description>
+		<parent>系統管理者</parent>
+		<disable>1</disable>
+	</role>
+	
+	<role roleKey="networker">
+		<roleName>網路暨維修組</roleName>
+		<description>系統預設使用者身分。</description>
+		<parent>系統使用者</parent>
+		<disable>1</disable>
+	</role>
+	
+	<role roleKey="guest">
+		<roleName>訪客</roleName>
+		<description>系統預設未註冊使用者，訪客僅可瀏覽。</description>
+		<parent>系統使用者</parent>
+		<disable>1</disable>
+	</role>
+</default>
+</configdata>

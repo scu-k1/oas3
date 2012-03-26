@@ -53,7 +53,7 @@ class Month_Bootstrap extends Zend_Application_Module_Bootstrap
 		if( !file_exists(realpath(dirname(__FILE__)).'/configure.xml')){
 			return FALSE;
 		//若已有設定值，則不再處理此區塊！
-		}else if( is_array($this->_session->CONST->MONTH) ){
+		}else if( isset($this->_session->CONST->MONTH) && is_array($this->_session->CONST->MONTH) ){
 			return TRUE;
 		}
 	
