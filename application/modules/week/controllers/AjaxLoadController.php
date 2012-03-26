@@ -11,7 +11,7 @@
  */
 
 
-class Month_AjaxLoadController extends Zend_Controller_Action
+class Week_AjaxLoadController extends Zend_Controller_Action
 {
 	private $_logger;
 	

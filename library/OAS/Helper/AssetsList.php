@@ -1,13 +1,42 @@
 <?php
 /**
+ * @author k1
  * @link http://blog.srmklive.com/2011/01/06/get-list-of-all-modules-with-respective-controllers-and-actions-in-zend-framework/
+ * 
+ * @desc 處理於Bootstrap.php階段取得整個Application架構的MVC結構項目初始化resource
+ * 
+ * 1. 處理判斷個別模組下的所有Actions
+ * 2. 處理判斷個別模組下的特定Controllers所有Actions
+ * 3. 處理查詢是否特定Actions存在於特定模組
+ * 4. 
  */
  
-class OAS_Helper_AssetsList extends Zend_Controller_Action_Helper_Abstract 
+class OAS_Helper_ResourceList extends Zend_Controller_Action_Helper_Abstract 
 {
+	var $_path;
+	
     public function direct() {}
-
-    public function getList() {
+	
+	/**
+	 * feature::處理判斷個別模組下的所有Actions
+	 */
+	public function getLists()
+	{
+	}
+	
+	
+	/**
+	 * feature::處理判斷個別模組下的所有Actions
+	 */
+	public function getActionByName()
+	{
+		
+	}
+	
+	/**
+	 * feature::處理判斷個別模組下的特定Controllers所有Actions
+	 */
+    public function getList($module=null, $controller=null) {
         $module_dir = $this->getFrontController()->getControllerDirectory();
         $resources = array();
 

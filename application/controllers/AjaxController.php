@@ -28,6 +28,7 @@ class AjaxController extends Zend_Controller_Action
 	 * called by::IndexController
 	 * @param post:account passwd 取得傳遞的帳號密碼並判斷來自哪個功能！	
 	 * @return JSON
+	 * @author 
 	 */
 	public function checkAction()
 	{

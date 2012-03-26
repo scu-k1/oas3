@@ -11,7 +11,7 @@
  */
 
 
-class Month_PorcessController extends Zend_Controller_Action
+class Week_PorcessController extends Zend_Controller_Action
 {
 	private $_logger;
 	

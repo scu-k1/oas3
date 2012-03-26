@@ -249,8 +249,11 @@ class Bootstrap extends Zend_Application_Bootstrap_Bootstrap
 	protected function _initHelper()
 	{
 		//存取MVC架構所有Action()清單功能
-		Zend_Controller_Action_HelperBroker::addHelper(new OAS_Helper_AssetsList() );
+		Zend_Controller_Action_HelperBroker::addHelper(new OAS_Helper_ResourceList() );
 		//引入集合匯入jQuery套件功能
 		Zend_Controller_Action_HelperBroker::addHelper(new OAS_Helper_ImportJavascripts() );
+		
+		$asset = new OAS_Helper_ResourceList();
+		Zend_Debug::dump($asset->getLists());
     }	
 }
